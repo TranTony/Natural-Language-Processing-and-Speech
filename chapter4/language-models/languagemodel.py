@@ -61,7 +61,7 @@ class NGram:
 		self.N_freq = self.NGram_count(sentences, nGram)
 		self.N_1_freq = self.NGram_count(sentences, nGram - 1)
 		self.N_Prob = self.NGram_prob(nGram);
-		
+
 	# Counting the number of n words
 	def NGram_count(self, sentences, nGram):
 		N_freq = dict()
@@ -90,8 +90,8 @@ class NGram:
 						break
 		return self.N_Prob
 
-	# Estimate probability of a sentence
-	def NGram_sentence_prob(self, nGram, sentence):
+	# Estimate log probability of a sentence
+	def NGram_sentence_prob_log(self, nGram, sentence):
 		previous_words = ()
 		pr = sentence.split(" ")
 		pr = tuple(pr)
@@ -109,18 +109,72 @@ class NGram:
 				previous_words = () 
 
 		for n_key in s_freq:
-			prob_sum_log += math.log(self.N_Prob.get(n_key, 2))		
-
+			try:
+				prob_sum_log += math.log(self.N_Prob.get(n_key, 2))		
+			except:
+				prob_sum_log += float(0)
 		return prob_sum_log
+	
+	# Estimate prob of a sentence
+	def NGram_sentence_prob(self, nGram, sentence):
+		previous_words = ()
+		pr = sentence.split(" ")
+		pr = tuple(pr)
+		n_count = 0
+		s_freq = []
+
+		for index in range(len(pr) + 1 - nGram):
+			n_count = index
+			for ind in range(nGram):
+				previous_words += (pr[n_count + ind],)
+
+			if len(previous_words) == nGram:
+				s_freq.append(previous_words)
+				previous_words = () 
+
+		prob_mul = 1.0
+		for n_key in s_freq:
+			prob_mul *= self.N_Prob.get(n_key, 1)	
+
+		return prob_mul
+
+	# perplexity references to chapter 4 Language Modeling with N-grams.
+	def NGram_perplexity(self, biGramML, sentence, nGram=2):
+		prob_w = biGramML.NGram_sentence_prob(nGram, sentence)
+		n_gram_count = len(sentence.split(" ")) - 2
+		
+		try:
+			sentence_probability_log_sum = math.log(prob_w)
+		except:
+			sentence_probability_log_sum = float('-inf')
+		
+		exp = -1 / n_gram_count
+		return math.pow(prob_w, exp)
+
 
 if __name__ == '__main__':
+
+	# corpus for Language Model
 	data = readData("./sampledata.txt")
-	sentence = "I am Sam I do not like"
+
+	# Test sentence
+	sentence = "<s> I am a man I do not like </s>"
+
+	# Number of Ngram
 	N_Gram = 2
-	#uniGramML = UniGramLM(data, smoothing=False)
+
+	# Language Models
 	nGramML = NGram(data, N_Gram, smoothing=False)
+	biGramML = NGram(data, 2, smoothing=False)
+
+	# Estimate probability for language model
 	nGramML.NGram_prob(N_Gram)
-	print("probability of sentence = " + str(nGramML.NGram_sentence_prob(N_Gram, sentence)))
+
+	# Calculate perplexity of the test sentence
+	print(nGramML.NGram_perplexity(biGramML, sentence))
+
+	# Calculate the probility of a sentence
+	print("probability of sentence = " + str(nGramML.NGram_sentence_prob_log(N_Gram, sentence)))
 
 	
 				
